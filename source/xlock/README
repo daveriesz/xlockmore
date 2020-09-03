@@ -1,24 +1,15 @@
 
-This is the latest version of xlock (sccs version 23.16) patchlevel = 2.1
+This is the latest version of xlock (sccs version 23.21) patchlevel = 2.3
 
 CHANGES:
- o now uses Xrm for resource management.
- o locks all screens on a server.
- o new modes: swarm, image and blank.
- o better usage message.
- o support for locking remote machines (X terminals)
- o changed color allocation to non-dynamic (so twm won't complain)
- o center prompt screen (for hires displays).
- o make sure Xlib input buffer does not use up all of swap.
- o make displayed text come from resource file for better I18N.
- o add backward compatible signal handlers for pre 4.1 machines.
- o protect Host access from accessing freed data.
- o autoraise when obscured by a pop-up.
- o searches for machine name aliases.
- o ported to SYSVR4.
- o portable usleep().
+    o added worm mode.
+    o old -name and .name changed to -username and .username.
+    o lint cast.
+    o change color allocation to allow "#ffaabb" style color names.
+    o portability bug in flame mode fixed plus some other nits.
+    o white on black on monochrome screens fixed.
 
- Copyright (c) 1988-90 by Patrick Naughton and Sun Microsystems, Inc.
+ Copyright (c) 1988-91 by Patrick J. Naughton.
 
  Permission to use, copy, modify, and distribute this software and its
  documentation for any purpose and without fee is hereby granted,
@@ -26,13 +17,12 @@ CHANGES:
  both that copyright notice and this permission notice appear in
  supporting documentation.
 
- This file is provided AS IS with no warranties of any kind. The author
+ This file is provided AS IS with no warranties of any kind.  The author
  shall have no liability with respect to the infringement of copyrights,
- trade secrets or any patents by this file or any part thereof. In no
+ trade secrets or any patents by this file or any part thereof.  In no
  event will the author be liable for any lost revenue or profits or
  other special, indirect and consequential damages.
 
- ______________________________________________________________________
- Patrick J. Naughton ARPA: naug...@sun.com
- Windows and Graphics Group UUCP: ...!sun!naughton
- Sun Microsystems, Inc. AT&T: (415) 336 - 1080
+    ______________________________________________________________________
+    Patrick J. Naughton				   email: naughton@sun.com
+    Sun Microsystems Laboratories, Inc.		   voice: (415) 336 - 1080

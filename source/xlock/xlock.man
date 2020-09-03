@@ -1,5 +1,5 @@
-.\" @(#)xlock.1 1.3 90/10/28; Copyright (c) 1990 - Sun Microsystems, Inc.
-.TH XLOCK 1 "28 Oct 1990" "OpenWindows"
+.\" @(#)xlock.man	1.11 91/09/27; Copyright (c) 1991 - Patrick J. Naughton
+.TH XLOCK 1 "27 Sep 1991" "X11R5 Contrib"
 .SH NAME
 xlock \- Locks the local X display until a password is entered.
 
@@ -8,6 +8,15 @@ xlock \- Locks the local X display until a password is entered.
 .B xlock
 [
 .BI \-display " dsp"
+]
+[
+.BI \-help
+]
+[
+.BI \-name "resource-name"
+]
+[
+.BI \-resources
 ]
 [
 .BI -/+remote
@@ -29,6 +38,9 @@ xlock \- Locks the local X display until a password is entered.
 ]
 [
 .BI -/+echokeys
+]
+[
+.BI -/+usefirst
 ]
 [
 .BI -/+v
@@ -61,7 +73,7 @@ xlock \- Locks the local X display until a password is entered.
 .BI \-mode " mode"
 ]
 [
-.BI \-name " textstring"
+.BI \-username " textstring"
 ]
 [
 .BI \-password " textstring"
@@ -91,8 +103,8 @@ password of the user who started
 .B xlock.
 
 If the correct password is typed, then the screen is unlocked and the X
-server is restored. When typing the password Control-U and Control-H are
-active as kill and erase respectively. To return to the locked screen,
+server is restored.  When typing the password Control-U and Control-H are
+active as kill and erase respectively.  To return to the locked screen,
 click in the small icon version of the changing pattern.
 
 .SH OPTIONS
@@ -112,8 +124,15 @@ unless you set the
 .B \-remote
 option.
 .TP 5
+.B \-name " resource-name"
+.I resource-name
+is used instead of
+.B XLock
+when looking for resources to configure xlock.
+.TP 5
 .B \-mode " modename"
-As of this writing there are six display modes supported.
+As of this writing there are eight display modes supported
+(plus one more for random selection of one of the eight).
 .TP 8
 .B hop
 Hop mode shows the "real plane fractals" from the September 1986 issue of
@@ -132,16 +151,31 @@ Image mode shows several sun logos randomly appearing on the screen.
 .B swarm
 Swarm mode shows a swarm of bees following a wasp.
 .TP 8
+.B rotor
+Rotor mode shows a swirling rotorlike thing.
+.TP 8
+.B pyro
+Pyro mode shows fireworks.
+.TP 8
+.B flame
+Flame mode shows wierd but cool cosmic flame fractals.
+.TP 8
+.B worm
+Worm mode shows wiggly worms...
+.TP 8
 .B blank
 Blank mode shows nothing but a black screen.
+.TP 8
+.B random
+Random mode picks a random mode from all of the above except blank mode.
 
 .TP 5
 .B \-delay " usecs"
 The
 .I delay
-option sets the speed at which a mode will operate. It simply sets the
+option sets the speed at which a mode will operate.  It simply sets the
 number of microseconds to delay between batches of "hopalong pixels",
-"qix lines", "life generations", "image blits", and "swarm motions". In
+"qix lines", "life generations", "image blits", and "swarm motions".  In
 blank mode, it is important to set this to some small number of seconds,
 because the keyboard and mouse are only checked after each delay, so you
 cannot set the delay too high, but a delay of zero would needlessly
@@ -155,11 +189,16 @@ option sets number of
 .I things
 to do per batch to
 .I num .
-In qix mode this refers to the number of lines rendered in the same color.
 In hop mode this refers to the number of pixels rendered in the same color.
-In image mode this refers to the number of sunlogos on screen at once.
-In swarm mode this refers to the number of bees.
-In life and blank mode it means nothing.
+In life mode it is the number of generations to let each species live.
+In qix mode it is the number of lines rendered in the same color.
+In image mode it is the number of sunlogos on screen at once.
+In swarm mode it is the number of bees.
+In rotor mode it is the number of rotor thingys which whirr...
+In pyro mode it is the maximum number flying rockets at one time.
+In flame mode it is the number of levels to recurse (larger = more complex).
+In worm mode it is the number of worms.
+In blank mode it means nothing.
 .TP 5
 .B \-nice " nicelevel"
 The
@@ -179,7 +218,7 @@ The
 .I saturation
 option sets saturation of the color ramp used to
 .I value .
-0 is grayscale and 1 is very rich color. 0.4 is a nice pastel.
+0 is grayscale and 1 is very rich color.  0.4 is a nice pastel.
 .TP 5
 .B \-font " fontname"
 The
@@ -198,7 +237,7 @@ The
 option sets the color of the background on the password screen to
 .I color .
 .TP 5
-.B \-name " textstring"
+.B \-username " textstring"
 .I textstring
 is shown in front of user name, defaults to "Name: ".
 .TP 5
@@ -222,14 +261,19 @@ is an informational message to tell the user what to do, defaults to
 "Invalid login."
 
 .TP 5
+.B \-resources
+The
+.I resources
+option prints the default resource file for xlock to standard output.
+.TP 5
 .B -/+remote
 The
 .I remote
-option tells xlock to not stop you from locking remote X11 servers. This
+option tells xlock to not stop you from locking remote X11 servers.  This
 option should be used with care and is intended mainly to lock X11 terminals
 which cannot run
 .I xlock
-locally. If you lock someone else's workstation, they will have to know
+locally.  If you lock someone else's workstation, they will have to know
 .B your
 password to unlock it.
 .TP 5
@@ -253,22 +297,33 @@ who started xlock.
 .TP 5
 .B -/+enablesaver
 By default xlock will disable the normal X server's screen saver since
-it is in effect a replacement for it. Since it is possible to set delay
+it is in effect a replacement for it.  Since it is possible to set delay
 parameters long enough to cause phosphor burn on some displays, this
 option will turn back on the default screensaver which is very careful
 to keep most of the screen black.
 .TP 5
 .B -/+allowaccess
-This option is simply a hack for the paranoid, who don't want to disable the
-access control list, but still want the local server to prompt for a password.
-This way if xlock is killed -KILL, the access control list is not lost.
+This option is required for servers which do not allow clients to modify
+the host access control list.  It is also useful if you need to run x
+clients on a server which is locked for some reason...  When allowaccess
+is true, the X11 server is left open for clients to attach and thus
+lowers the inherent security of this lockscreen.  A side effect of using
+this option is that if xlock is killed -KILL, the access control list is
+not lost.
 .TP 5
 .B -/+echokeys
 The
 .I echokeys
 option causes xlock to echo '?' characters for each key typed into the
-password prompt. Some consider this a security risk, so the default is
-to not echo anything.
+password prompt.  Some consider this a security risk, so the default is
+to not echo anything. 
+.TP 5
+.B -/+usefirst
+The
+.I usefirst
+option causes xlock to use the keystroke which got you to the password screen
+as the first character in the password.  The default is to ignore the first
+key pressed.
 .TP 5
 .B \-v
 Verbose mode, tells what options it is going to use.
@@ -279,25 +334,34 @@ Verbose mode, tells what options it is going to use.
 " causes the server that was locked to be unusable, since all hosts
 (including localhost) were removed from the access control list
 to lock out new X clients, and since xlock couldn't catch SIGKILL,
-it terminated before restoring the access control list. This will
+it terminated before restoring the access control list.  This will
 leave the X server in a state where
 \fI"you can no longer connect to that server,
 and this operation cannot be reversed unless you reset the server."\fP
- -From the X11R4 Xlib Documentation, Chapter 7.
+		-From the X11R4 Xlib Documentation, Chapter 7.
+
+NCD terminals do not allow xlock to remove all the hosts from the access
+control list.  Therefore you will need to use the "-remote" and
+"-noaccess" switches.  If you happen to run without "-noaccess" on an
+NCD terminal,
+.B xlock
+won't work and you will need to reboot the terminal, or simply go into
+the SETUP menus, under 'Network Parameters', and turn off TCP/IP access
+control. 
+
 .SH SEE ALSO
 X(1), Xlib Documentation.
 .SH AUTHOR
- Patrick J. Naughton (naug...@wind.eng.sun.com)
- MailStop 14-01
- Windows and Graphics Group
- Sun Microsystems, Inc.
- Mountain View, CA 94043
+ Patrick J. Naughton	 (naughton@eng.sun.com)
+ Mailstop 21-14
+ Sun Microsystems Laboratories, Inc.
+ Mountain View, CA  94043
  415/336-1080
 .SH COPYRIGHT
-Copyright (c) 1988-90 by Patrick J. Naughton and Sun Microsystems, Inc.
+Copyright (c) 1988-91 by Patrick J. Naughton
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
 both that copyright notice and this permission notice appear in
-supporting documentation.
+supporting documentation. 

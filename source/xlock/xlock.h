@@ -1,5 +1,10 @@
-/*
- * @(#)xlock.h 1.6 90/10/28 XLOCK SMI
+/*-
+ * @(#)xlock.h	1.9 91/05/24 XLOCK
+ *
+ * xlock.h - external interfaces for new modes and SYSV OS defines.
+ *
+ * Copyright (c) 1991 by Patrick J. Naughton.
+ *
  */
 
 #include <X11/Xlib.h>
@@ -10,14 +15,14 @@
 #define NUMCOLORS 64
 
 typedef struct {
- GC gc; /* graphics context for animation */
- int npixels; /* number of valid entries in pixels */
- u_long pixels[NUMCOLORS]; /* pixel values in the colormap */
-} perscreen;
+    GC          gc;		/* graphics context for animation */
+    int         npixels;	/* number of valid entries in pixels */
+    u_long      pixels[NUMCOLORS];	/* pixel values in the colormap */
+}           perscreen;
 
 extern perscreen Scr[MAXSCREENS];
 extern Display *dsp;
-extern int screen;
+extern int  screen;
 
 extern char *ProgramName;
 extern char *display;
@@ -31,11 +36,12 @@ extern char *text_info;
 extern char *text_valid;
 extern char *text_invalid;
 extern float saturation;
-extern int nicelevel;
-extern int delay;
-extern int batchcount;
-extern int reinittime;
-extern int timeout;
+extern int  nicelevel;
+extern int  delay;
+extern int  batchcount;
+extern int  reinittime;
+extern int  timeout;
+extern Bool usefirst;
 extern Bool mono;
 extern Bool nolock;
 extern Bool allowroot;
@@ -61,13 +67,13 @@ extern void usage();
 #include <shadow.h>
 #define srandom srand
 #define random rand
-#define USERNAME "LOGNAME"
+#define MAXRAND (32767.0)
 #define passwd spwd
 #define pw_passwd sp_pwdp
 #define getpwnam getspnam
 
 #else
 
-#define USERNAME "USER"
+#define MAXRAND (2147483648.0)
 
 #endif

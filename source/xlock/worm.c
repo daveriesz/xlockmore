@@ -1,6 +1,8 @@
 #ifndef lint
 static char sccsid[] = "%Z%%M% %I% %E% XLOCK";
 #endif
+
+#define MACRO_BSTRING
 /*-
  * worm.c - draw wiggly worms.
  *
@@ -65,7 +67,7 @@ int
 round(x)
     float       x;
 {
-    return ((int) rint((double) x));
+    return ((int)(x + .5));
 }
 
 

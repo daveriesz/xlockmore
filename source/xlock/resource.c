@@ -26,7 +26,7 @@ static char sccsid[] = "@(#)resource.c	1.20 91/09/27 XLOCK";
 
 #include <stdio.h>
 #include "xlock.h"
-#include <netdb.h>
+/* #include <netdb.h> */
 #include <math.h>
 #include <ctype.h>
 
@@ -438,7 +438,7 @@ GetResource(database, parentname, parentclass,
 	*((int *) valuep) = atoi(buffer);
 	break;
     case t_Float:
-	*((float *) valuep) = (float) atof(buffer);
+	sscanf(buffer, "%f", (float *)valuep);
 	break;
     }
 }
@@ -520,33 +520,6 @@ open_display()
 	 */
 	if (nolock)
 	    remote = True;
-	if (!remote && n
-		&& strncmp(display, "unix", n)
-		&& strncmp(display, "localhost", n)) {
-	    char        hostname[MAXHOSTNAMELEN];
-	    struct hostent *host;
-	    char      **hp;
-	    int         badhost = 1;
-
-	    if (gethostname(hostname, MAXHOSTNAMELEN))
-		error("%s: Can't get local hostname.\n");
-
-	    if (!(host = gethostbyname(hostname)))
-		error("%s: Can't get hostbyname.\n");
-
-	    if (strncmp(display, host->h_name, n)) {
-		for (hp = host->h_aliases; *hp; hp++) {
-		    if (!strncmp(display, *hp, n)) {
-			badhost = 0;
-			break;
-		    }
-		}
-		if (badhost) {
-		    *colon = (char) 0;
-		    error("%s: can't lock %s's display\n", display);
-		}
-	    }
-	}
     } else
 	display = ":0.0";
     if (!(dsp = XOpenDisplay(display)))

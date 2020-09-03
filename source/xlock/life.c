@@ -1,6 +1,8 @@
 #ifndef lint
 static char sccsid[] = "@(#)life.c	23.6 91/05/24 XLOCK";
 #endif
+
+#define MACRO_BSTRING
 /*-
  * life.c - Conway's game of Life for xlock, the X Window System lockscreen.
  *
@@ -393,7 +395,7 @@ spawn(loc)
 
 
 static void
-kill(loc)
+lifekill(loc)
     unsigned char *loc;
 {
     lifestruct *lp = &lifes[screen];
@@ -572,7 +574,7 @@ drawlife(win)
 		break;
 	    case DEATH:
 		if (*(loc + 1) & RT) {
-		    kill(loc);
+		    lifekill(loc);
 		    erasecell(win, row, col);
 		}
 		break;

@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)pyro.c	1.1 91/05/24 XLOCK";
 #define MAXSFUSE 100
 
 #define INTRAND(min,max) (random()%((max+1)-(min))+(min))
-#define FLOATRAND(min,max) ((min)+(random()/MAXRAND)*((max)-(min)))
+#define FLOATRAND(min,max) ((min)+((float )random()/(float )MAXRAND)*((max)-(min)))
 
 static void ignite();
 static void animate();
@@ -214,7 +214,7 @@ ignite(pp)
     int         multi, shelltype, nstars, fuse, npix, pix, color1, color2;
     float       xvel, yvel, x;
 
-    x = random() % pp->width;
+    x = (float )(random() % pp->width);
     xvel = FLOATRAND(-pp->maxvelx, pp->maxvelx);
 /* All this to stop too many rockets going offscreen: */
     if (x < pp->lmargin && xvel < 0.0 || x > pp->rmargin && xvel > 0.0)

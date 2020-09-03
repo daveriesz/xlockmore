@@ -17,7 +17,7 @@
 typedef struct {
     GC          gc;		/* graphics context for animation */
     int         npixels;	/* number of valid entries in pixels */
-    u_long      pixels[NUMCOLORS];	/* pixel values in the colormap */
+    unsigned long      pixels[NUMCOLORS];	/* pixel values in the colormap */
 }           perscreen;
 
 extern perscreen Scr[MAXSCREENS];
@@ -63,17 +63,17 @@ extern void usage();
 #ifdef SYSV
 
 #include <sys/time.h>
-#include <poll.h>
-#include <shadow.h>
-#define srandom srand
-#define random rand
-#define MAXRAND (32767.0)
-#define passwd spwd
-#define pw_passwd sp_pwdp
-#define getpwnam getspnam
+/* #include <poll.h> */
+/* #include <shadow.h> */
+/* #define srandom srand */
+/* #define random rand */
+#define MAXRAND (double )RAND_MAX
+/* #define passwd spwd */
+/* #define pw_passwd sp_pwdp */
+/* #define getpwnam getspnam */
 
 #else
 
-#define MAXRAND (2147483648.0)
+#define MAXRAND (double )2147483647 
 
 #endif

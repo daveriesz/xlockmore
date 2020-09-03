@@ -1,8 +1,6 @@
 #ifndef lint
-static char sccsid[] = "%Z%%M% %I% %E% XLOCK";
+static char sccsid[] = "@(#)worm.c 1.3 91/01/01 XLOCK";
 #endif
-
-#define MACRO_BSTRING
 /*-
  * worm.c - draw wiggly worms.
  *
@@ -11,6 +9,7 @@ static char sccsid[] = "%Z%%M% %I% %E% XLOCK";
  * See xlock.c for copying information.
  *
  * Revision History:
+ * 23-Sep-93: got rid of "rint". (David Bagley)
  * 27-Sep-91: got rid of all malloc calls since there were no calls to free().
  * 25-Sep-91: Integrated into X11R5 contrib xlock.
  *
@@ -34,8 +33,9 @@ static char sccsid[] = "%Z%%M% %I% %E% XLOCK";
 #define CIRCSIZE 2
 #define MAXWORMLEN 50
 
-#define PI 3.14159265358979323844
 #define SEGMENTS  36
+#define IRINT(x) ((int)(((x)>0.0)?(x)+0.5:(x)-0.5))
+
 static int  sintab[SEGMENTS];
 static int  costab[SEGMENTS];
 static int  init_table = 0;
@@ -53,7 +53,7 @@ typedef struct {
     int         xsize;
     int         ysize;
     int         wormlength;
-    int         monopix;
+    unsigned long        monopix;
     int         nc;
     int         nw;
     wormstuff   worm[MAXWORMS];
@@ -67,7 +67,8 @@ int
 round(x)
     float       x;
 {
-    return ((int)(x + .5));
+    /*return ((int) rint ((double) x));*/
+    return IRINT((double) x);
 }
 
 
@@ -128,8 +129,8 @@ initworm(win)
     if (!init_table) {
 	init_table = 1;
 	for (i = 0; i < SEGMENTS; i++) {
-	    sintab[i] = round(CIRCSIZE * sin(i * 2 * PI / SEGMENTS));
-	    costab[i] = round(CIRCSIZE * cos(i * 2 * PI / SEGMENTS));
+	    sintab[i] = round(CIRCSIZE * sin(i * 2 * M_PI / SEGMENTS));
+	    costab[i] = round(CIRCSIZE * cos(i * 2 * M_PI / SEGMENTS));
 	}
     }
     XGetWindowAttributes(dsp, win, &xwa);
@@ -150,7 +151,7 @@ initworm(win)
 	    wp->rects[i][j].height = CIRCSIZE;
 	}
     }
-    bzero(wp->size, wp->nc * sizeof(int));
+    (void) memset(wp->size, 0, wp->nc * sizeof(int));
 
     for (i = 0; i < wp->nw; i++) {
 	for (j = 0; j < wp->wormlength; j++) {
@@ -173,10 +174,10 @@ drawworm(win)
 {
     int         i;
     wormstruct *wp = &worms[screen];
-    unsigned int wcolor;
+    unsigned long wcolor;
     static unsigned int chromo = 0;
 
-    bzero(wp->size, wp->nc * sizeof(int));
+    (void) memset(wp->size, 0, wp->nc * sizeof(int));
 
     for (i = 0; i < wp->nw; i++) {
 	if (!mono && wp->nc > 2) {
@@ -184,7 +185,7 @@ drawworm(win)
 
 	    worm_doit(win, wp, i, wcolor);
 	} else
-	    worm_doit(win, wp, i, 0);
+	    worm_doit(win, wp, i, (unsigned long) 0);
     }
 
     if (!mono && wp->nc > 2) {

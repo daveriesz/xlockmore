@@ -52,7 +52,7 @@ XLock.maze.saturation: 1
 XLock.sphere.delay: 1000
 XLock.sphere.batchcount: 1
 XLock.sphere.saturation: 1
-XLock.hyper.delay: 10000
+XLock.hyper.delay: 5000
 XLock.hyper.batchcount: 1
 XLock.hyper.saturation: 1
 XLock.helix.delay: 10000

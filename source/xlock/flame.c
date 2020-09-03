@@ -73,7 +73,7 @@ initflame(win)
     XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
     XFillRectangle(dsp, win, Scr[screen].gc, 0, 0, fs->width, fs->height);
 
-    if (Scr[screen].npixels > 2) {
+    if (!mono && Scr[screen].npixels > 2) {
 	fs->pixcol = halfrandom(Scr[screen].npixels);
 	XSetForeground(dsp, Scr[screen].gc, Scr[screen].pixels[fs->pixcol]);
     } else {
@@ -87,7 +87,7 @@ recurse(fs, x, y, l)
     register double x, y;
     register int l;
 {
-    int         xp, yp, i;
+    int         /*xp, yp,*/ i;
     double      nx, ny;
 
     if (l == fs->max_levels) {
@@ -96,9 +96,9 @@ recurse(fs, x, y, l)
 	    return False;
 
 	if (x > -1.0 && x < 1.0 && y > -1.0 && y < 1.0) {
-	    xp = fs->pts[fs->num_points].x = (int) ((fs->width / 2)
+	    /* xp = */ fs->pts[fs->num_points].x = (int) ((fs->width / 2)
 						    * (x + 1.0));
-	    yp = fs->pts[fs->num_points].y = (int) ((fs->height / 2)
+	    /* yp = */ fs->pts[fs->num_points].y = (int) ((fs->height / 2)
 						    * (y + 1.0));
 	    fs->num_points++;
 	    if (fs->num_points > MAXBATCH) {	/* point buffer size */

@@ -1,6 +1,6 @@
 # @(#)Makefile	1.9 91/09/27 XLOCK
 
-ICONTYPE	= sun
+ICONTYPE	= hp
 
 # Set your C compiler
 #CC		= gcc
@@ -9,26 +9,26 @@ CC		= cc
 # X include files
 #XINCLUDEPATH	= /usr/local/include
 #XINCLUDEPATH	= /usr/include/X11R4
-#XINCLUDEPATH	= /usr/include/X11R5
-XINCLUDEPATH	= ${OPENWINHOME}/include
+XINCLUDEPATH	= /usr/include/X11R5
+#XINCLUDEPATH	= ${OPENWINHOME}/include
 #XINCLUDEPATH	= ${MOTIFHOME}/include
 
 # X libraries
 #XLIBPATH	= /usr/local/lib
 #XLIBPATH	= /usr/lib/X11R4
-#XLIBPATH	= /usr/lib/X11R5
-XLIBPATH	= ${OPENWINHOME}/lib
+XLIBPATH	= /usr/lib/X11R5
+#XLIBPATH	= ${OPENWINHOME}/lib
 #XLIBPATH	= ${MOTIFHOME}/lib
 
 ##############################################################
  
 INCLUDES	= -I${XINCLUDEPATH} -I.
 LIBRARIES	= -L${XLIBPATH}
-#DEFINES	= -DDEF_FILESEARCHPATH=\"$(LIBDIR)/%T/%N%S\" -DSTARSIZE=2
+DEFINES		= -DDEF_FILESEARCHPATH=\"$(LIBDIR)/%T/%N%S\" -DSTARSIZE=2
 COPT		= -O
 CFLAGS		= ${COPT} ${DEFINES} ${INCLUDES}
-LIBS		= ${LIBRARIES} -lX11 -lm
-#LIBS		= ${LIBRARIES} -lX11 -lm -lcrypt
+LIBS		= ${LIBRARIES} -lXhp11 -lX11 -lm
+#LIBS		= ${LIBRARIES} -lXhp11 -lX11 -lm -lcrypt
 HDRS		= xlock.h
 SRCS		= xlock.c hsbramp.c usleep.c resource.c\
 	hopalong.c qix.c life.c blank.c\
@@ -47,8 +47,8 @@ all:		${OBJS}
 debug:	xlock
 debug:=COPT=-g -DDEBUG
 
-resource.o:=DEFINES=-DDEF_FILESEARCHPATH=\"$(LIBDIR)/%T/%N%S\"
-pyro.o:=DEFINES=-DSTARSIZE=2
+#resource.o:=DEFINES=-DDEF_FILESEARCHPATH=\"$(LIBDIR)/%T/%N%S\"
+#pyro.o:=DEFINES=-DSTARSIZE=2
 
 maze.c:	mazeicon.bit
 life.c:	lifeicon.bit

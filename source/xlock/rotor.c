@@ -9,6 +9,8 @@ static char sccsid[] = "@(#)rotor.c	1.6 91/05/24 XLOCK";
  * See xlock.c for copying information.
  *
  * Revision History:
+ * 01-Dec-93: added patch for AIXV3 from
+ *            (Tom McConnell, tmcconne@sedona.intel.com)
  * 11-Nov-90: put into xlock (by Steve Zellers, zellers@sun.com)
  * 16-Oct-90: Received from Tom Lawrence (tcl@cs.brown.edu: 'flight' simulator)
  */
@@ -30,7 +32,7 @@ static char sccsid[] = "@(#)rotor.c	1.6 91/05/24 XLOCK";
 typedef unsigned char Boolean;
 
 #define IDENT(X)	X
-#ifdef __STDC__
+#if defined (__STDC__) || defined (AIXV3)
 #define CAT(X,Y)	X##Y
 #else
 #define CAT(X,Y)	IDENT(X)Y
@@ -111,7 +113,7 @@ initrotor(win)
 		exit(1);
 	    }
 	}
-	memset(fs->savex, 0, sizeof(fs->savex));
+	(void) memset(fs->savex, 0, sizeof(fs->savex));
 
 	pelem = fs->elements;
 

@@ -1,8 +1,6 @@
 #ifndef lint
 static char sccsid[] = "@(#)life.c	23.6 91/05/24 XLOCK";
 #endif
-
-#define MACRO_BSTRING
 /*-
  * life.c - Conway's game of Life for xlock, the X Window System lockscreen.
  *
@@ -11,6 +9,12 @@ static char sccsid[] = "@(#)life.c	23.6 91/05/24 XLOCK";
  * See xlock.c for copying information.
  *
  * Revision History:
+ * Changes of David Bagley <bagleyd@source.asset.com>
+ * 21-Jul-94: Took out bzero & bcopy since memset & memcpy is more portable
+ * 10-Jun-94: Changed name of function 'kill', which is a libc function on
+ *            many systems from Victor Langeveld <vic@mbfys.kun.nl>
+ *
+ * Changes of Patrick J. Naughton
  * 24-May-91: Added wraparound code from johnson@bugs.comm.mot.com.
  *	      Made old cells stay blue.
  *	      Made batchcount control the number of generations till restart.
@@ -395,7 +399,7 @@ spawn(loc)
 
 
 static void
-lifekill(loc)
+ckill(loc)
     unsigned char *loc;
 {
     lifestruct *lp = &lifes[screen];
@@ -525,7 +529,7 @@ initlife(win)
     XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
     XFillRectangle(dsp, win, Scr[screen].gc, 0, 0, lp->width, lp->height);
 
-    bzero(lp->buffer, sizeof(lp->buffer));
+    (void) memset(lp->buffer, 0, sizeof(lp->buffer));
     patptr = &patterns[random() % NPATS][0];
     while ((col = *patptr++) != 99) {
 	row = *patptr++;
@@ -548,12 +552,13 @@ drawlife(win)
     loc = lp->buffer + lp->ncols + 2 + 1;
     temploc = lp->tempbuf;
     /* copy the first 2 rows to the tempbuf */
-    bcopy(loc, temploc, lp->ncols);
-    bcopy(loc + lp->ncols + 2, temploc + lp->ncols, lp->ncols);
+    (void) memcpy(temploc, loc, lp->ncols);
+    (void) memcpy(temploc + lp->ncols, loc + lp->ncols + 2, lp->ncols);
 
     lastloc = lp->lastbuf;
     /* copy the last row to another buffer for wraparound */
-    bcopy(loc + ((lp->nrows - 1) * (lp->ncols + 2)), lastloc, lp->ncols);
+    (void) memcpy(lastloc, loc + ((lp->nrows - 1) * (lp->ncols + 2)),
+             lp->ncols);
 
     for (row = 0; row < lp->nrows; ++row) {
 	for (col = 0; col < lp->ncols; ++col) {
@@ -574,7 +579,7 @@ drawlife(win)
 		break;
 	    case DEATH:
 		if (*(loc + 1) & RT) {
-		    lifekill(loc);
+		    ckill(loc);
 		    erasecell(win, row, col);
 		}
 		break;

@@ -9,12 +9,19 @@ static char sccsid[] = "@(#)hsbramp.c	23.5 91/05/24 XLOCK";
  * See xlock.c for copying information.
  *
  * Revision History:
+ * Changes of David Bagley <bagleyd@source.asset.com>
+ * 22-Jun-94: Modified for VMS
+ *            <Anthony.D.Clarke@Support.Hatfield.Raytheon.bae.eurokom.ie>
+ * Changes of Patrick J. Naughton
  * 29-Jul-90: renamed hsbramp.c from HSBmap.c
  *	      minor optimizations.
  * 01-Sep-88: Written.
  */
 
 #include <sys/types.h>
+#ifdef VMS
+typedef unsigned char u_char;
+#endif
 #include <math.h>
 
 void

@@ -61,7 +61,7 @@ initqix(win)
     qp->nlines = (batchcount + 1) * 2;
     if (!qp->lineq) {
 	qp->lineq = (point *) malloc(qp->nlines * sizeof(point));
-	memset(qp->lineq, '\0', qp->nlines * sizeof(point));
+	(void) memset(qp->lineq, 0, qp->nlines * sizeof(point));
     }
 
     XGetWindowAttributes(dsp, win, &xgwa);

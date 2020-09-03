@@ -17,7 +17,6 @@ static char sccsid[] = "@(#)swarm.c	1.5 91/05/24 XLOCK";
 #define WASPACC 5		/* maximum acceleration of wasp */
 #define BEEVEL	11		/* maximum bee velocity */
 #define WASPVEL 12		/* maximum wasp velocity */
-#define BORDER	50		/* wasp won't go closer than this to the edge */
 
 /* Macros */
 #define X(t,b)	(sp->x[(t)*sp->beecount+(b)])
@@ -29,6 +28,7 @@ typedef struct {
     long        startTime;
     int         width;
     int         height;
+    int         border;		/* wasp won't go closer than this to the edge */
     int         beecount;	/* number of bees */
     XSegment   *segs;		/* bee lines */
     XSegment   *old_segs;	/* old bee lines */
@@ -58,6 +58,7 @@ initswarm(win)
     XGetWindowAttributes(dsp, win, &xgwa);
     sp->width = xgwa.width;
     sp->height = xgwa.height;
+    sp->border = (sp->width + sp->height) / 50;
 
     /* Clear the background. */
     XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
@@ -76,8 +77,8 @@ initswarm(win)
     /* Initialize point positions, velocities, etc. */
 
     /* wasp */
-    sp->wx[0] = BORDER + random() % (sp->width - 2 * BORDER);
-    sp->wy[0] = BORDER + random() % (sp->height - 2 * BORDER);
+    sp->wx[0] = sp->border + random() % (sp->width - 2 * sp->border);
+    sp->wy[0] = sp->border + random() % (sp->height - 2 * sp->border);
     sp->wx[1] = sp->wx[0];
     sp->wy[1] = sp->wy[0];
     sp->wxv = 0;
@@ -128,11 +129,11 @@ drawswarm(win)
     sp->wy[0] = sp->wy[1] + sp->wyv;
 
     /* Bounce Checks */
-    if ((sp->wx[0] < BORDER) || (sp->wx[0] > sp->width - BORDER - 1)) {
+    if ((sp->wx[0] < sp->border) || (sp->wx[0] > sp->width - sp->border - 1)) {
 	sp->wxv = -sp->wxv;
 	sp->wx[0] += sp->wxv;
     }
-    if ((sp->wy[0] < BORDER) || (sp->wy[0] > sp->height - BORDER - 1)) {
+    if ((sp->wy[0] < sp->border) || (sp->wy[0] > sp->height - sp->border - 1)) {
 	sp->wyv = -sp->wyv;
 	sp->wy[0] += sp->wyv;
     }

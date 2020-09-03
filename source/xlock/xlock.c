@@ -18,17 +18,33 @@ static char sccsid[] = "@(#)xlock.c	23.21 91/06/27 XLOCK";
  * event will the author be liable for any lost revenue or profits or
  * other special, indirect and consequential damages.
  *
- * Comments and additions should be sent to the author:
- *
- *		       naughton@eng.sun.com
- *
- *		       Patrick J. Naughton
- *		       MS 21-14
- *		       Sun Laboritories, Inc.
- *		       2550 Garcia Ave
- *		       Mountain View, CA  94043
- *
  * Revision History:
+ *
+ * Changes of David Bagley <bagleyd@source.asset.com>
+ * 11-Jul-94: added -inwindow option from Greg Bowering
+ *            <greg@cs.adelaide.edu.au>
+ * 22-Jun-94: Modified for VMS
+ *            <Anthony.D.Clarke@Support.Hatfield.Raytheon.bae.eurokom.ie>
+ * 10-Jun-94: patch for BSD from Victor Langeveld <vic@mbfys.kun.nl>
+ * 02-May-94: patched to work on Linux from Darren Senn's
+ *            (sinster@scintilla.capitola.ca.us) xlock for Linux.
+ *            Took out "bounce" since it was too buggy (maybe I will put
+ *            it back later).
+ * 21-Mar-94: patch to to trap Shift-Ctrl-Reset courtesy of Jamie Zawinski
+ *            <jwz@lucid.com>, patched the patch (my mistake) for AIXV3 and
+ *            HP from <R.K.Lloyd@csc.liv.ac.uk>.
+ * 01-Dec-93: added patch for AIXV3 from
+ *            (Tom McConnell, tmcconne@sedona.intel.com) also added a patch
+ *            for HP-UX 8.0.
+ * 29-Jul-93: "hyper", "helix", "rock", and "blot" (also tips on "maze") I
+ *            got courtesy of Jamie Zawinski <jwz@lucid.com>;
+ *            at the time I couldn't get his stuff to work for the hpux 8.0,
+ *            so I scrapped it but threw his stuff in xlock.
+ *            "maze" and "sphere" I got courtesy of Sun Microsystems. 
+ *            "spline" I got courtesy of Jef Poskanzer <jef@netcom.com or
+ *            jef@well.sf.ca.us>.
+ *
+ * Changes of Patrick J. Naughton
  * 24-Jun-91: make foreground and background color get used on mono.
  * 24-May-91: added -usefirst.
  * 16-May-91: added pyro and random modes.
@@ -120,7 +136,13 @@ static char sccsid[] = "@(#)xlock.c	23.21 91/06/27 XLOCK";
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#ifndef VMS
 #include <pwd.h>
+#endif
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <stdlib.h>
+#endif
 
 #include "xlock.h"
 #include <X11/cursorfont.h>
@@ -177,7 +199,7 @@ void
 error(s1, s2)
     char       *s1, *s2;
 {
-    fprintf(stderr, s1, ProgramName, s2);
+    (void) fprintf(stderr, s1, ProgramName, s2);
     exit(1);
 }
 
@@ -190,25 +212,25 @@ static int  HostAccessCount;	/* the number of machines in XHosts */
 static Bool HostAccessState;	/* whether or not we even look at the list */
 
 static void
-XGrabHosts(dsp)
-    Display    *dsp;
+XGrabHosts(display)
+    Display    *display;
 {
-    XHosts = XListHosts(dsp, &HostAccessCount, &HostAccessState);
+    XHosts = XListHosts(display, &HostAccessCount, &HostAccessState);
     if (XHosts)
-	XRemoveHosts(dsp, XHosts, HostAccessCount);
-    XEnableAccessControl(dsp);
+	XRemoveHosts(display, XHosts, HostAccessCount);
+    XEnableAccessControl(display);
 }
 
 static void
-XUngrabHosts(dsp)
-    Display    *dsp;
+XUngrabHosts(display)
+    Display    *display;
 {
     if (XHosts) {
-	XAddHosts(dsp, XHosts, HostAccessCount);
+	XAddHosts(display, XHosts, HostAccessCount);
 	XFree((char *) XHosts);
     }
     if (HostAccessState == False)
-	XDisableAccessControl(dsp);
+	XDisableAccessControl(display);
 }
 
 
@@ -227,7 +249,7 @@ GrabKeyboardAndMouse()
     status = XGrabKeyboard(dsp, win[0], True,
 			   GrabModeAsync, GrabModeAsync, CurrentTime);
     if (status != GrabSuccess) {
-	sleep(1);
+	(void) sleep(1);
 	status = XGrabKeyboard(dsp, win[0], True,
 			       GrabModeAsync, GrabModeAsync, CurrentTime);
 
@@ -238,7 +260,7 @@ GrabKeyboardAndMouse()
 			  GrabModeAsync, GrabModeAsync, None, mycursor,
 			  CurrentTime);
     if (status != GrabSuccess) {
-	sleep(1);
+	(void) sleep(1);
 	status = XGrabPointer(dsp, win[0], True, AllPointerEventMask,
 			      GrabModeAsync, GrabModeAsync, None, mycursor,
 			      CurrentTime);
@@ -258,7 +280,8 @@ XChangeGrabbedCursor(cursor)
     Cursor      cursor;
 {
 #ifndef DEBUG
-    (void) XGrabPointer(dsp, win[0], True, AllPointerEventMask,
+    if (!inwindow)
+      (void) XGrabPointer(dsp, win[0], True, AllPointerEventMask,
 		    GrabModeAsync, GrabModeAsync, None, cursor, CurrentTime);
 #endif
 }
@@ -312,7 +335,7 @@ ReadXString(s, slen)
 		else
 		    callback(win[screen]);
 	    XFlush(dsp);
-	    usleep(delay);
+	    (void) usleep(delay);
 	    if (seconds() - lasteventtime > timeout) {
 		screen = thisscreen;
 		return 1;
@@ -348,7 +371,7 @@ ReadXString(s, slen)
 	    }
 	    XSetForeground(dsp, Scr[screen].gc, bgcol[screen]);
 	    if (echokeys) {
-		memset(pwbuf, '?', slen);
+		(void) memset(pwbuf, '?', slen);
 		XFillRectangle(dsp, win[screen], Scr[screen].gc,
 			       passx, passy - font->ascent,
 			       XTextWidth(font, pwbuf, slen),
@@ -380,7 +403,8 @@ ReadXString(s, slen)
 	case VisibilityNotify:
 	    if (event.xvisibility.state != VisibilityUnobscured) {
 #ifndef DEBUG
-		XRaiseWindow(dsp, win[screen]);
+                if (!inwindow)
+		  XRaiseWindow(dsp, win[screen]);
 #endif
 		s[0] = '\0';
 		return 1;
@@ -393,11 +417,12 @@ ReadXString(s, slen)
 	case MotionNotify:
 	case LeaveNotify:
 	case EnterNotify:
+	case NoExpose:
 	    break;
 
 	default:
-	    fprintf(stderr, "%s: unexpected event: %d\n",
-		    ProgramName, event.type);
+	    (void) fprintf(stderr, "%s: unexpected event: %d\n",
+		     ProgramName, event.type);
 	    break;
 	}
     }
@@ -408,21 +433,103 @@ ReadXString(s, slen)
 static int
 getPassword()
 {
+#ifdef VMS
+#include <uaidef.h>
+#endif
+
     char        buffer[PASSLENGTH];
     char        userpass[PASSLENGTH];
     char        rootpass[PASSLENGTH];
     char       *user;
     XWindowAttributes xgwa;
     int         y, left, done;
+#ifdef VMS
+    char *root = "SYSTEM";
+ 
+    struct itmlst {
+      short buflen;
+      short code;
+      long  addr;
+      long  retadr;
+    };
+    struct itmlst il[4];
+ 
+    short uai_salt,root_salt;
+    char hash_password[9], hash_system[9],root_password[9],root_system[9];
+    char uai_encrypt,root_encrypt;
+ 
+    struct ascid {
+      short  len;
+      char dtype;
+      char class;
+      char *addr;
+    };
+ 
+    struct ascid username, password, rootuser;
+
+    user = cuserid(NULL);
+    il[0].buflen = 2;
+    il[0].code   = UAI$_SALT;
+    il[0].addr   = &uai_salt;
+    il[0].retadr = 0;
+    il[1].buflen = 8;
+    il[1].code   = UAI$_PWD;
+    il[1].addr   = &hash_password;
+    il[1].retadr = 0;
+    il[2].buflen = 1;
+    il[2].code   = UAI$_ENCRYPT;
+    il[2].addr   = &uai_encrypt;
+    il[2].retadr = 0;
+    il[3].buflen = 0;
+    il[3].code   = 0;
+    il[3].addr   = 0;
+    il[3].retadr = 0;
+ 
+    username.len   = strlen(user);
+    username.dtype = 0;
+    username.class = 0;
+    username.addr  = user;
+ 
+    sys$getuai(0,0,&username,&il,0,0,0);
+ 
+    il[0].buflen = 2;
+    il[0].code   = UAI$_SALT;
+    il[0].addr   = &root_salt;
+    il[0].retadr = 0;
+    il[1].buflen = 8;
+    il[1].code   = UAI$_PWD;
+    il[1].addr   = &root_password;
+    il[1].retadr = 0;
+    il[2].buflen = 1;
+    il[2].code   = UAI$_ENCRYPT;
+    il[2].addr   = &root_encrypt;
+    il[2].retadr = 0;
+    il[3].buflen = 0;
+    il[3].code   = 0;
+    il[3].addr   = 0;
+    il[3].retadr = 0;
+ 
+    rootuser.len   = strlen(root);
+    rootuser.dtype = 0;
+    rootuser.class = 0;
+    rootuser.addr  = root;
+ 
+    sys$getuai(0,0,&rootuser,&il,0,0,0);
+#else
     struct passwd *pw;
 
-    pw = getpwnam("root");
-    strcpy(rootpass, pw->pw_passwd);
+    pw = (struct passwd *)getpwnam("root");
+    (void) strcpy(rootpass, pw->pw_passwd);
 
-    pw = getpwnam(cuserid(NULL));
-    strcpy(userpass, pw->pw_passwd);
+#ifdef SOLARIS_SHADOW
+    pw = (struct passwd *)getpwnam(cuserid(NULL));
+#else
+    pw = (struct passwd *)getpwuid(getuid());
+#endif
+    (void) strcpy(userpass, pw->pw_passwd);
 
     user = pw->pw_name;
+#endif
 
     XGetWindowAttributes(dsp, win[screen], &xgwa);
 
@@ -474,15 +581,33 @@ getPassword()
 	 * where the user has no password correctly; they have to hit return
 	 * only
 	 */
-
+#ifdef VMS
+        password.len   = strlen(&buffer);
+        password.dtype = 0;
+        password.class = 0;
+        password.addr  = &buffer;
+ 
+        str$upcase(&password,&password);
+ 
+        sys$hash_password(&password,uai_encrypt,uai_salt,
+                          &username,&hash_system);
+        sys$hash_password(&password,root_encrypt,root_salt,
+                          &rootuser,&root_system);
+        hash_password[8]=0;
+        hash_system[8]=0;
+        root_password[8]=0;
+        root_system[8]=0;
+        done = !((strcmp(hash_password,hash_system)) &&
+                 (!allowroot || strcmp(root_password,root_system)));
+#else
 	done = !((strcmp(crypt(buffer, userpass), userpass))
 	       && (!allowroot || strcmp(crypt(buffer, rootpass), rootpass)));
-
-	if (!done && *buffer == NULL) {
+#endif
+	if (!done && !*buffer) {
 	    /* just hit return, and it wasn't his password */
 	    break;
 	}
-	if (*userpass == NULL && *buffer != NULL) {
+	if (!*userpass && *buffer) {
 	    /*
 	     * the user has no password, but something was typed anyway.
 	     * sounds fishy: don't let him in...
@@ -490,7 +615,7 @@ getPassword()
 	    done = False;
 	}
 	/* clear plaintext password so you can't grunge around /dev/kmem */
-	memset(buffer, 0, sizeof(buffer));
+	(void) memset(buffer, 0, sizeof(buffer));
 
 	XSetForeground(dsp, Scr[screen].gc, bgcol[screen]);
 
@@ -506,7 +631,7 @@ getPassword()
 	    return 0;
 	else {
 	    XSync(dsp, True);	/* flush input buffer */
-	    sleep(1);
+	    (void) sleep(1);
 	    XFillRectangle(dsp, win[screen], Scr[screen].gc,
 			   iconx[screen], y - font->ascent,
 			   XTextWidth(font, text_valid, strlen(text_valid)),
@@ -538,11 +663,11 @@ justDisplay()
 	    for (screen = 0; screen < screens; screen++)
 		callback(win[screen]);
 	    XFlush(dsp);
-	    usleep(delay);
+	    (void) usleep(delay);
 	}
 	XNextEvent(dsp, &event);
 #ifndef DEBUG
-	if (event.type == VisibilityNotify)
+        if (!inwindow && event.type == VisibilityNotify)
 	    XRaiseWindow(dsp, event.xany.window);
 #endif
     } while (event.type != ButtonPress && event.type != KeyPress);
@@ -566,7 +691,7 @@ static void
 lockDisplay()
 {
     if (!allowaccess) {
-#ifdef SYSV
+#if defined(SYSV) || defined(SVR4)
 	sigset_t    oldsigmask;
 	sigset_t    newsigmask;
 
@@ -578,29 +703,36 @@ lockDisplay()
 	sigprocmask(SIG_BLOCK, &newsigmask, &oldsigmask);
 #else
 	int         oldsigmask;
-
+#ifndef VMS
 	oldsigmask = sigblock(sigmask(SIGHUP) |
 			      sigmask(SIGINT) |
 			      sigmask(SIGQUIT) |
 			      sigmask(SIGTERM));
 #endif
+#endif
 
-	signal(SIGHUP, (void (*) ()) sigcatch);
-	signal(SIGINT, (void (*) ()) sigcatch);
-	signal(SIGQUIT, (void (*) ()) sigcatch);
-	signal(SIGTERM, (void (*) ()) sigcatch);
+	(void) signal(SIGHUP, (void (*) ()) sigcatch);
+	(void) signal(SIGINT, (void (*) ()) sigcatch);
+	(void) signal(SIGQUIT, (void (*) ()) sigcatch);
+	(void) signal(SIGTERM, (void (*) ()) sigcatch);
 
 	XGrabHosts(dsp);
 
-#ifdef SYSV
-	sigprocmask(SIG_SETMASK, &oldsigmask, &oldsigmask);
+#if defined(SYSV) || defined(SVR4)
+	(void) sigprocmask(SIG_SETMASK, &oldsigmask, &oldsigmask);
 #else
-	sigsetmask(oldsigmask);
+	(void) sigsetmask(oldsigmask);
 #endif
     }
+#ifdef __hpux
+	XHPDisableReset(dsp);
+#endif
     do {
 	justDisplay();
     } while (getPassword());
+#ifdef __hpux
+	XHPEnableReset(dsp);
+#endif
 }
 
 
@@ -614,8 +746,8 @@ allocpixel(cmap, name, def)
     XColor      tmp;
     XParseColor(dsp, cmap, name, &col);
     if (!XAllocColor(dsp, cmap, &col)) {
-	fprintf(stderr, "couldn't allocate: %s, using %s instead\n",
-		name, def);
+	(void) fprintf(stderr, "couldn't allocate: %s, using %s instead\n",
+		 name, def);
 	XAllocNamedColor(dsp, cmap, def, &col, &tmp);
     }
     return col.pixel;
@@ -645,8 +777,8 @@ main(argc, argv)
 
     font = XLoadQueryFont(dsp, fontname);
     if (font == NULL) {
-	fprintf(stderr, "%s: can't find font: %s, using %s...\n",
-		ProgramName, fontname, FALLBACK_FONTNAME);
+	(void) fprintf(stderr, "%s: can't find font: %s, using %s...\n",
+		 ProgramName, fontname, FALLBACK_FONTNAME);
 	font = XLoadQueryFont(dsp, FALLBACK_FONTNAME);
 	if (font == NULL)
 	    error("%s: can't even find %s!!!\n", FALLBACK_FONTNAME);
@@ -659,8 +791,8 @@ main(argc, argv)
 	Colormap    cmap = DefaultColormapOfScreen(scr);
 
 	root[screen] = RootWindowOfScreen(scr);
-	bgcol[screen] = allocpixel(cmap, background, "White");
-	fgcol[screen] = allocpixel(cmap, foreground, "Black");
+        bgcol[screen] = allocpixel(cmap, background, "White");
+        fgcol[screen] = allocpixel(cmap, foreground, "Black");
 
 	if (mono || CellsOfScreen(scr) == 2) {
 	    Scr[screen].pixels[0] = fgcol[screen];
@@ -691,7 +823,8 @@ main(argc, argv)
 		Scr[screen].npixels++;
 	    }
 	    if (verbose)
-		fprintf(stderr, "%d pixels allocated\n", Scr[screen].npixels);
+		(void) fprintf(stderr,
+                         "%d pixels allocated\n", Scr[screen].npixels);
 	}
 
 	xswa.override_redirect = True;
@@ -703,9 +836,9 @@ main(argc, argv)
 #define HEIGHT HeightOfScreen(scr) - 100
 #define CWMASK CWBackPixel | CWEventMask
 #else
-#define WIDTH WidthOfScreen(scr)
-#define HEIGHT HeightOfScreen(scr)
-#define CWMASK CWOverrideRedirect | CWBackPixel | CWEventMask
+#define WIDTH (inwindow? WidthOfScreen(scr)/2 : WidthOfScreen(scr))
+#define HEIGHT (inwindow? HeightOfScreen(scr)/2 : HeightOfScreen(scr))
+#define CWMASK ((inwindow? 0 : CWOverrideRedirect) | CWBackPixel | CWEventMask)
 #endif
 
 	win[screen] = XCreateWindow(dsp, root[screen], 0, 0, WIDTH, HEIGHT, 0,
@@ -722,6 +855,16 @@ main(argc, argv)
 			    XA_WM_HINTS, XA_WM_HINTS, 32, PropModeReplace,
 			(unsigned char *) &xwmh, sizeof(xwmh) / sizeof(int));
 	}
+#else
+        if (inwindow) {
+            XWMHints    xwmh;
+ 
+            xwmh.flags = InputHint;
+            xwmh.input = True;
+            XChangeProperty(dsp, win[screen],
+                            XA_WM_HINTS, XA_WM_HINTS, 32, PropModeReplace,
+                        (unsigned char *) &xwmh, sizeof(xwmh) / sizeof(int));
+        }
 #endif
 
 	iconx[screen] = (DisplayWidth(dsp, screen) -
@@ -767,10 +910,11 @@ main(argc, argv)
 	XSetScreenSaver(dsp, 0, 0, 0, 0);	/* disable screen saver */
     }
 #ifndef DEBUG
-    GrabKeyboardAndMouse();
+    if (!inwindow)
+      GrabKeyboardAndMouse();
 #endif
 
-    nice(nicelevel);
+    (void) nice(nicelevel);
 
     if (nolock)
 	justDisplay();
@@ -779,5 +923,9 @@ main(argc, argv)
 
     finish();
 
+#ifdef VMS
+    return 1;
+#else
     return 0;
+#endif
 }

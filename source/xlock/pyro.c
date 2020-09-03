@@ -26,7 +26,7 @@ static char sccsid[] = "@(#)pyro.c	1.1 91/05/24 XLOCK";
 
 /* Define this >1 to get small rectangles instead of points */
 #ifndef STARSIZE
-#define STARSIZE 1
+#define STARSIZE 2
 #endif
 
 #define SILENT 0
@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)pyro.c	1.1 91/05/24 XLOCK";
 #define MAXSFUSE 100
 
 #define INTRAND(min,max) (random()%((max+1)-(min))+(min))
-#define FLOATRAND(min,max) ((min)+((float )random()/(float )MAXRAND)*((max)-(min)))
+#define FLOATRAND(min,max) ((min)+(random()/MAXRAND)*((max)-(min)))
 
 static void ignite();
 static void animate();
@@ -73,7 +73,7 @@ static void burst();
 typedef struct {
     int         state;
     int         shelltype;
-    int         color1, color2;
+    long        color1, color2;
     int         fuse;
     float       xvel, yvel;
     float       x, y;
@@ -125,6 +125,8 @@ initpyro(win)
 
     XGetWindowAttributes(dsp, win, &xwa);
 
+    if (batchcount < 1)
+      batchcount = 1;
     orig_p_ignite = P_IGNITE / batchcount;
     if (orig_p_ignite <= 0)
 	orig_p_ignite = 1;
@@ -211,10 +213,11 @@ ignite(pp)
     pyrostruct *pp;
 {
     rocket     *rp;
-    int         multi, shelltype, nstars, fuse, npix, pix, color1, color2;
+    int         multi, shelltype, nstars, fuse, npix, pix;
+    unsigned long	color1, color2;
     float       xvel, yvel, x;
 
-    x = (float )(random() % pp->width);
+    x = random() % pp->width;
     xvel = FLOATRAND(-pp->maxvelx, pp->maxvelx);
 /* All this to stop too many rockets going offscreen: */
     if (x < pp->lmargin && xvel < 0.0 || x > pp->rmargin && xvel > 0.0)

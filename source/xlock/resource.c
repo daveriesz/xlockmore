@@ -9,6 +9,19 @@ static char sccsid[] = "@(#)resource.c	1.20 91/09/27 XLOCK";
  * See xlock.c for copying information.
  *
  * Revision History:
+ *
+ * Changes of David Bagley (bagleyd@source.asset.com)
+ * 11-Jul-94: added grav mode, and inwindow option from Greg Bowering
+ *            <greg@cs.adelaide.edu.au>
+ * 22-Jun-94: Modified for VMS
+ *            <Anthony.D.Clarke@Support.Hatfield.Raytheon.bae.eurokom.ie>
+ * 17-Jun-94: default changed from life to blank
+ * 21-Mar-94: patch fix for AIXV3 from (R.K.Lloyd@csc.liv.ac.uk)
+ * 01-Dec-93: added patch for AIXV3 from
+ *            (Tom McConnell, tmcconne@sedona.intel.com)
+ * 29-Jun-93: added spline, maze, sphere, hyper, helix, rock, and blot mode.
+ *
+ * Changes of Patrick J. Naughton
  * 25-Sep-91: added worm mode.
  * 24-Jun-91: changed name to username.
  * 06-Jun-91: Added flame mode.
@@ -25,8 +38,11 @@ static char sccsid[] = "@(#)resource.c	1.20 91/09/27 XLOCK";
  */
 
 #include <stdio.h>
+#ifdef VMS
+#include <stdlib.h>
+#endif
 #include "xlock.h"
-/* #include <netdb.h> */
+#include <netdb.h>
 #include <math.h>
 #include <ctype.h>
 
@@ -44,9 +60,6 @@ extern void drawlife();
 
 extern void initqix();
 extern void drawqix();
-
-extern void initimage();
-extern void drawimage();
 
 extern void initblank();
 extern void drawblank();
@@ -66,6 +79,39 @@ extern void drawflame();
 extern void initworm();
 extern void drawworm();
 
+extern void initspline();
+extern void drawspline();
+
+extern void initmaze();
+extern void drawmaze();
+
+extern void initsphere();
+extern void drawsphere();
+
+extern void inithyper();
+extern void drawhyper();
+
+extern void inithelix();
+extern void drawhelix();
+
+extern void initrock();
+extern void drawrock();
+
+extern void initblot();
+extern void drawblot();
+
+extern void initgrav();
+extern void drawgrav();
+
+extern void initbounce();
+extern void drawbounce();
+
+extern void initworld();
+extern void drawworld();
+
+extern void initrect();
+extern void drawrect();
+
 typedef struct {
     char       *cmdline_arg;
     void        (*lp_init) ();
@@ -79,15 +125,25 @@ typedef struct {
 static char randomstring[] = "random";
 
 static LockStruct LockProcs[] = {
-    {"hop", inithop, drawhop, 0, 1000, 1.0, "Hopalong iterated fractals"},
+    {"hop", inithop, drawhop, 1000, 1000, 1.0, "Hopalong iterated fractals"},
     {"qix", initqix, drawqix, 30000, 64, 1.0, "Spinning lines a la Qix(tm)"},
-    {"image", initimage, drawimage, 2000000, 8, 0.3, "Random bouncing image"},
     {"life", initlife, drawlife, 1000000, 100, 1.0, "Conway's game of Life"},
     {"swarm", initswarm, drawswarm, 10000, 100, 1.0, "Swarm of bees"},
-    {"rotor", initrotor, drawrotor, 10000, 4, 0.4, "Tom's Roto-Rooter"},
+    {"rotor", initrotor, drawrotor, 100000, 4, 0.4, "Tom's Roto-Rooter"},
     {"pyro", initpyro, drawpyro, 15000, 40, 1.0, "Fireworks"},
     {"flame", initflame, drawflame, 10000, 20, 1.0, "Cosmic Flame Fractals"},
     {"worm", initworm, drawworm, 10000, 20, 1.0, "Wiggly Worms"},
+    {"spline", initspline, drawspline, 30000, 6, 0.4, "Moving Splines"},
+    {"maze", initmaze, drawmaze, 10000, 40, 1.0, "aMAZEing"},
+    {"sphere", initsphere, drawsphere, 10000, 1, 1.0, "Shaded spheres"},
+    {"hyper", inithyper, drawhyper, 10000, 1, 1.0, "Spinning Tesseract"},
+    {"helix", inithelix, drawhelix, 10000, 1, 1.0, "Helix"},
+    {"rock", initrock, drawrock, 30000, 100, 1.0, "Asteroid field"},
+    {"blot", initblot, drawblot, 10000, 6, 0.4, "Rorschach's ink blot test"},
+    {"grav", initgrav, drawgrav, 10000, 10, 1.0, "Orbiting planets"},
+    {"bounce", initbounce, drawbounce, 10000, 10, 1.0, "Bouncing ball"},
+    {"world", initworld, drawworld, 100000, 8, 0.3, "Random Spinning Earths"},
+    {"rect", initrect, drawrect, 10000, 100, 1.0, "Greynetic rectangles"},
     {"blank", initblank, drawblank, 5000000, 1, 1.0, "Blank screen"},
     {randomstring, NULL, NULL, 0, 0, 0.0, "Random mode"},
 };
@@ -100,11 +156,23 @@ static LockStruct LockProcs[] = {
 extern char *getenv();
 
 #ifndef DEF_FILESEARCHPATH
+#ifdef VMS
+#define DEF_FILESEARCHPATH "DECW$SYSTEM_DEFAULTS:DECW$%N.DAT%S"
+#else
 #define DEF_FILESEARCHPATH "/usr/lib/X11/%T/%N%S"
 #endif
+#endif
+#ifdef VMS
+#define DEF_DISPLAY     "DECW$DISPLAY:"
+#else
 #define DEF_DISPLAY	":0"
-#define DEF_MODE	"life"
+#endif
+#define DEF_MODE	"blank"
+#ifndef AIXV3
 #define DEF_FONT	"-b&h-lucida-medium-r-normal-sans-24-*-*-*-*-*-iso8859-1"
+#else /* AIXV3 */
+#define DEF_FONT	"fixed"
+#endif /* AIXV3 */
 #define DEF_BG		"White"
 #define DEF_FG		"Black"
 #define DEF_NAME	"Name: "
@@ -143,6 +211,8 @@ static XrmOptionDescRec genTable[] = {
     {"+usefirst", ".usefirst", XrmoptionNoArg, (caddr_t) "off"},
     {"-v", ".verbose", XrmoptionNoArg, (caddr_t) "on"},
     {"+v", ".verbose", XrmoptionNoArg, (caddr_t) "off"},
+    {"-inwindow",".inwindow", XrmoptionNoArg, (caddr_t) "on"},
+    {"+inwindow",".inwindow", XrmoptionNoArg, (caddr_t) "off"},
     {"-nice", ".nice", XrmoptionSepArg, (caddr_t) NULL},
     {"-timeout", ".timeout", XrmoptionSepArg, (caddr_t) NULL},
     {"-font", ".font", XrmoptionSepArg, (caddr_t) NULL},
@@ -198,6 +268,7 @@ static OptionStruct opDesc[] = {
     {"-/+echokeys", "turn on/off echo '?' for each password key"},
     {"-/+usefirst", "turn on/off using the first char typed in password"},
     {"-/+v", "turn on/off verbose mode"},
+    {"-/+inwindow", "turn on/off making xlock run in a window"},
     {"-delay usecs", "microsecond delay between screen updates"},
     {"-batchcount num", "number of things per batch"},
     {"-nice level", "nice level for xlock process"},
@@ -214,7 +285,7 @@ static OptionStruct opDesc[] = {
 };
 #define opDescEntries (sizeof opDesc / sizeof opDesc[0])
 
-char       *display;
+char       *displayname;
 char       *mode;
 char       *fontname;
 char       *background;
@@ -238,6 +309,7 @@ Bool        allowaccess;
 Bool        echokeys;
 Bool        usefirst;
 Bool        verbose;
+Bool        inwindow;
 
 #define t_String	0
 #define t_Float		1
@@ -272,6 +344,7 @@ static argtype genvars[] = {
     {(caddr_t *) &echokeys, "echokeys", "EchoKeys", "off", t_Bool},
     {(caddr_t *) &usefirst, "usefirst", "Usefirst", "off", t_Bool},
     {(caddr_t *) &verbose, "verbose", "Verbose", "off", t_Bool},
+    {(caddr_t *) &inwindow, "inwindow", "InWindow", "off", t_Bool},
 };
 #define NGENARGS (sizeof genvars / sizeof genvars[0])
 
@@ -282,6 +355,23 @@ static argtype modevars[] = {
 };
 #define NMODEARGS (sizeof modevars / sizeof modevars[0])
 
+#ifdef VMS
+static char *stripname(string)  
+char *string;    
+{
+  char *characters;
+ 
+  while (string && *string++ != ']'); 
+  characters = string; 
+  while (characters)
+    if (*characters == '.') {  
+      *characters = '\0';   
+      return string; 
+    } else 
+      characters++; 
+  return string; 
+}
+#endif
 
 static void
 Syntax(badOption)
@@ -289,41 +379,41 @@ Syntax(badOption)
 {
     int         col, len, i;
 
-    fprintf(stderr, "%s:  bad command line option \"%s\"\n\n",
-	    ProgramName, badOption);
+    (void) fprintf(stderr, "%s:  bad command line option \"%s\"\n\n",
+	     ProgramName, badOption);
 
-    fprintf(stderr, "usage:  %s", ProgramName);
+    (void) fprintf(stderr, "usage:  %s", ProgramName);
     col = 8 + strlen(ProgramName);
     for (i = 0; i < opDescEntries; i++) {
 	len = 3 + strlen(opDesc[i].opt);	/* space [ string ] */
 	if (col + len > 79) {
-	    fprintf(stderr, "\n   ");	/* 3 spaces */
+	    (void) fprintf(stderr, "\n   ");	/* 3 spaces */
 	    col = 3;
 	}
-	fprintf(stderr, " [%s]", opDesc[i].opt);
+	(void) fprintf(stderr, " [%s]", opDesc[i].opt);
 	col += len;
     }
 
     len = 8 + strlen(LockProcs[0].cmdline_arg);
     if (col + len > 79) {
-	fprintf(stderr, "\n   ");	/* 3 spaces */
+	(void) fprintf(stderr, "\n   ");	/* 3 spaces */
 	col = 3;
     }
-    fprintf(stderr, " [-mode %s", LockProcs[0].cmdline_arg);
+    (void) fprintf(stderr, " [-mode %s", LockProcs[0].cmdline_arg);
     col += len;
     for (i = 1; i < NUMPROCS; i++) {
 	len = 3 + strlen(LockProcs[i].cmdline_arg);
 	if (col + len > 79) {
-	    fprintf(stderr, "\n   ");	/* 3 spaces */
+	    (void) fprintf(stderr, "\n   ");	/* 3 spaces */
 	    col = 3;
 	}
-	fprintf(stderr, " | %s", LockProcs[i].cmdline_arg);
+	(void) fprintf(stderr, " | %s", LockProcs[i].cmdline_arg);
 	col += len;
     }
-    fprintf(stderr, "]\n");
+    (void) fprintf(stderr, "]\n");
 
-    fprintf(stderr, "\nType %s -help for a full description.\n\n",
-	    ProgramName);
+    (void) fprintf(stderr, "\nType %s -help for a full description.\n\n",
+	     ProgramName);
     exit(1);
 }
 
@@ -332,19 +422,21 @@ Help()
 {
     int         i;
 
-    fprintf(stderr, "usage:\n        %s [-options ...]\n\n", ProgramName);
-    fprintf(stderr, "where options include:\n");
+    (void) fprintf(stderr, "usage:\n        %s [-options ...]\n\n",
+             ProgramName);
+    (void) fprintf(stderr, "where options include:\n");
     for (i = 0; i < opDescEntries; i++) {
-	fprintf(stderr, "    %-28s %s\n", opDesc[i].opt, opDesc[i].desc);
+	(void) fprintf(stderr, "    %-28s %s\n",
+                 opDesc[i].opt, opDesc[i].desc);
     }
 
-    fprintf(stderr, "    %-28s %s\n", "-mode mode", "animation mode");
-    fprintf(stderr, "    where mode is one of:\n");
+    (void) fprintf(stderr, "    %-28s %s\n", "-mode mode", "animation mode");
+    (void) fprintf(stderr, "    where mode is one of:\n");
     for (i = 0; i < NUMPROCS; i++) {
-	fprintf(stderr, "          %-23s %s\n",
-		LockProcs[i].cmdline_arg, LockProcs[i].desc);
+	(void) fprintf(stderr, "          %-23s %s\n",
+		 LockProcs[i].cmdline_arg, LockProcs[i].desc);
     }
-    putc('\n', stderr);
+    (void) putc('\n', stderr);
 
     exit(0);
 }
@@ -354,18 +446,18 @@ DumpResources()
 {
     int         i;
 
-    printf("%s.mode: %s\n", classname, DEF_MODE);
+    (void) printf("%s.mode: %s\n", classname, DEF_MODE);
 
     for (i = 0; i < NGENARGS; i++)
-	printf("%s.%s: %s\n",
+	(void) printf("%s.%s: %s\n",
 	       classname, genvars[i].name, genvars[i].def);
 
     for (i = 0; i < NUMPROCS - 1; i++) {
-	printf("%s.%s.%s: %d\n", classname, LockProcs[i].cmdline_arg,
+	(void) printf("%s.%s.%s: %d\n", classname, LockProcs[i].cmdline_arg,
 	       "delay", LockProcs[i].def_delay);
-	printf("%s.%s.%s: %d\n", classname, LockProcs[i].cmdline_arg,
+	(void) printf("%s.%s.%s: %d\n", classname, LockProcs[i].cmdline_arg,
 	       "batchcount", LockProcs[i].def_batchcount);
-	printf("%s.%s.%s: %g\n", classname, LockProcs[i].cmdline_arg,
+	(void) printf("%s.%s.%s: %g\n", classname, LockProcs[i].cmdline_arg,
 	       "saturation", LockProcs[i].def_saturation);
     }
     exit(0);
@@ -404,8 +496,8 @@ GetResource(database, parentname, parentclass,
     char        fullclass[1024];
     int         len;
 
-    sprintf(fullname, "%s.%s", parentname, name);
-    sprintf(fullclass, "%s.%s", parentclass, class);
+    (void) sprintf(fullname, "%s.%s", parentname, name);
+    (void) sprintf(fullclass, "%s.%s", parentclass, class);
     if (XrmGetResource(database, fullname, fullclass, &type, &value)) {
 	string = value.addr;
 	len = value.size;
@@ -438,7 +530,7 @@ GetResource(database, parentname, parentclass,
 	*((int *) valuep) = atoi(buffer);
 	break;
     case t_Float:
-	sscanf(buffer, "%f", (float *)valuep);
+	*((float *) valuep) = (float) atof(buffer);
 	break;
     }
 }
@@ -484,7 +576,11 @@ parsefilepath(xfilesearchpath, TypeName, ClassName)
 		src++;
 		break;
 	    }
+#ifdef VMS
+        } else if (*src == '#') {/* Colons required in VMS use #*/
+#else
 	} else if (*src == ':') {
+#endif
 	    database = XrmGetFileDatabase(appdefaults);
 	    if (database == NULL) {
 		dst = appdefaults;
@@ -506,13 +602,13 @@ parsefilepath(xfilesearchpath, TypeName, ClassName)
 static void
 open_display()
 {
-    if (display != NULL) {
+    if (displayname != NULL) {
 	extern char *strchr();
-	char       *colon = strchr(display, ':');
-	int         n = colon - display;
+	char       *colon = strchr(displayname, ':');
+	int         n = colon - displayname;
 
 	if (colon == NULL)
-	    error("%s: Malformed -display argument, \"%s\"\n", display);
+	    error("%s: Malformed -display argument, \"%s\"\n", displayname);
 
 	/*
 	 * only restrict access to other displays if we are locking and if the
@@ -520,10 +616,37 @@ open_display()
 	 */
 	if (nolock)
 	    remote = True;
+	if (!remote && n
+		&& strncmp(displayname, "unix", n)
+		&& strncmp(displayname, "localhost", n)) {
+	    char        hostname[MAXHOSTNAMELEN];
+	    struct hostent *host;
+	    char      **hp;
+	    int         badhost = 1;
+
+	    if (gethostname(hostname, MAXHOSTNAMELEN))
+		error("%s: Can't get local hostname.\n");
+
+	    if (!(host = gethostbyname(hostname)))
+		error("%s: Can't get hostbyname.\n");
+
+	    if (strncmp(displayname, host->h_name, n)) {
+		for (hp = host->h_aliases; *hp; hp++) {
+		    if (!strncmp(displayname, *hp, n)) {
+			badhost = 0;
+			break;
+		    }
+		}
+		if (badhost) {
+		    *colon = (char) 0;
+		    error("%s: can't lock %s's display\n", displayname);
+		}
+	    }
+	}
     } else
-	display = ":0.0";
-    if (!(dsp = XOpenDisplay(display)))
-	error("%s: unable to open display %s.\n", display);
+	displayname = ":0.0";
+    if (!(dsp = XOpenDisplay(displayname)))
+	error("%s: unable to open display %s.\n", displayname);
 }
 
 
@@ -534,20 +657,20 @@ printvar(class, var)
 {
     switch (var.type) {
     case t_String:
-	fprintf(stderr, "%s.%s: %s\n",
+	(void) fprintf(stderr, "%s.%s: %s\n",
 		class, var.name, *((char **) var.var));
 	break;
     case t_Bool:
-	fprintf(stderr, "%s.%s: %s\n",
+	(void) fprintf(stderr, "%s.%s: %s\n",
 		class, var.name, *((int *) var.var)
 		? "True" : "False");
 	break;
     case t_Int:
-	fprintf(stderr, "%s.%s: %d\n",
+	(void) fprintf(stderr, "%s.%s: %d\n",
 		class, var.name, *((int *) var.var));
 	break;
     case t_Float:
-	fprintf(stderr, "%s.%s: %g\n",
+	(void) fprintf(stderr, "%s.%s: %g\n",
 		class, var.name, *((float *) var.var));
 	break;
     }
@@ -587,6 +710,10 @@ GetResources(argc, argv)
      * get -name arg from command line so you can have different resource
      * files for different configurations/machines etc...
      */
+#ifdef VMS
+    /*Strip off directory and .exe; parts*/
+    ProgramName = stripname(ProgramName);
+#endif
     XrmParseCommand(&nameDB, nameTable, 1, ProgramName,
 		    &argc, argv);
     GetResource(nameDB, ProgramName, "*", "name", "Name", t_String,
@@ -608,9 +735,14 @@ GetResources(argc, argv)
     if (!userpath) {
 	env = getenv("XAPPLRESDIR");
 	if (env)
-	    sprintf(userfile, "%s/%%N:%s/%%N", env, homeenv);
+	    (void) sprintf(userfile, "%s/%%N:%s/%%N", env, homeenv);
 	else
-	    sprintf(userfile, "%s/%%N", homeenv);
+#ifdef VMS
+            (void) sprintf(userfile, "%sDECW$%%N.DAT#%sDECW$XDEFAULTS.DAT",
+                    homeenv, homeenv);
+#else
+	    (void) sprintf(userfile, "%s/%%N", homeenv);
+#endif
 	userpath = userfile;
     }
     userDB = parsefilepath(userpath, "app-defaults", classname);
@@ -621,7 +753,7 @@ GetResources(argc, argv)
 
     env = getenv("DISPLAY");
     GetResource(RDB, ProgramName, classname, "display", "Display", t_String,
-		env ? env : DEF_DISPLAY, &display);
+		env ? env : DEF_DISPLAY, &displayname);
     GetResource(RDB, ProgramName, classname, "nolock", "NoLock", t_Bool,
 		"off", (caddr_t *) &nolock);
     GetResource(RDB, ProgramName, classname, "remote", "Remote", t_Bool,
@@ -634,7 +766,7 @@ GetResources(argc, argv)
 	(void) XrmMergeDatabases(serverDB, &RDB);
     } else {
 	char        buf[1024];
-	sprintf(buf, "%s/.Xdefaults", homeenv);
+	(void) sprintf(buf, "%s/.Xdefaults", homeenv);
 	homeDB = XrmGetFileDatabase(buf);
 	(void) XrmMergeDatabases(homeDB, &RDB);
     }
@@ -651,8 +783,8 @@ GetResources(argc, argv)
     if (!strcmp(mode, randomstring))
 	mode = LockProcs[random() % (NUMPROCS - 2)].cmdline_arg;
 
-    sprintf(modename, "%s.%s", ProgramName, mode);
-    sprintf(modeclass, "%s.%s", classname, mode);
+    (void) sprintf(modename, "%s.%s", ProgramName, mode);
+    (void) sprintf(modeclass, "%s.%s", classname, mode);
 
     XrmParseCommand(&modeDB, modeTable, modeEntries, modeclass, &argc, argv);
     (void) XrmMergeDatabases(modeDB, &RDB);
@@ -705,6 +837,10 @@ CheckResources()
     if (delay < 0)
 	Syntax("-delay argument must be positive.");
 
+    /* in case they have a 'xlock*mode: ' empty resource */
+    if (!mode || *mode == '\0')
+      mode = DEF_MODE;
+
     for (i = 0; i < NUMPROCS; i++) {
 	if (!strncmp(LockProcs[i].cmdline_arg, mode, strlen(mode))) {
 	    init = LockProcs[i].lp_init;
@@ -713,7 +849,7 @@ CheckResources()
 	}
     }
     if (i == NUMPROCS) {
-	fprintf(stderr, "Unknown mode: ");
+	(void) fprintf(stderr, "Unknown mode: ");
 	Syntax(mode);
     }
 }

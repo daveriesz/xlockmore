@@ -46,6 +46,9 @@ xlock \- Locks the local X display until a password is entered.
 .BI -/+v
 ]
 [
+.BI -/+inwindow
+]
+[
 .BI \-delay " usecs"
 ]
 [
@@ -107,6 +110,15 @@ server is restored.  When typing the password Control-U and Control-H are
 active as kill and erase respectively.  To return to the locked screen,
 click in the small icon version of the changing pattern.
 
+.SH "NOTE ON ETIQUETTE"
+.I Xlock
+should not be used on public terminals when there is a high demand for them.
+
+If you find a public terminal that has been locked by another user and
+there are no other terminals available, and the terminal appears to have
+been left idle for a while (normally more than 15 minutes), it's fair to
+try to reset the session in some manner.
+
 .SH OPTIONS
 .TP 5
 .B \-display " dsp"
@@ -145,9 +157,6 @@ Life mode shows Conway's game of life.
 Qix mode shows the spinning lines similar to the old video game
 by the same name.
 .TP 8
-.B image
-Image mode shows several sun logos randomly appearing on the screen.
-.TP 8
 .B swarm
 Swarm mode shows a swarm of bees following a wasp.
 .TP 8
@@ -158,10 +167,44 @@ Rotor mode shows a swirling rotorlike thing.
 Pyro mode shows fireworks.
 .TP 8
 .B flame
-Flame mode shows wierd but cool cosmic flame fractals.
+Flame mode shows weird but cool cosmic flame fractals.
 .TP 8
 .B worm
 Worm mode shows wiggly worms...
+.TP 8
+.B spline
+Spline mode shows colorful moving splines, from spline fun #3.
+.TP 8
+.B maze
+Maze mode shows a random maze and a depth first search solution.
+.TP 8
+.B sphere
+Sphere mode draws a bunch of shaded spheres.
+.TP 8
+.B hyper
+Hyper mode draws a spinning tesseract in 4D space.
+.TP 8
+.B helix
+Helix mode shows string art.
+.TP 8
+.B rock
+Rock mode shows asteroid field with a twist.
+.TP 8
+.B blot
+Blot mode shows Rorschach's in blot test. (I always see a daemon,
+what does that mean?)
+.TP 8
+.B grav
+Grav mode shows orbiting planets.
+.TP 8
+.B bounce
+Bounce mode shows bouncing footballs.
+.TP 8
+.B world
+World mode makes the Earth spin.
+.TP 8
+.B rect
+Rect mode makes the stippled rectangles.
 .TP 8
 .B blank
 Blank mode shows nothing but a black screen.
@@ -175,7 +218,7 @@ The
 .I delay
 option sets the speed at which a mode will operate.  It simply sets the
 number of microseconds to delay between batches of "hopalong pixels",
-"qix lines", "life generations", "image blits", and "swarm motions".  In
+"qix lines", "life generations", "world blits", "swarm motions", etc.  In
 blank mode, it is important to set this to some small number of seconds,
 because the keyboard and mouse are only checked after each delay, so you
 cannot set the delay too high, but a delay of zero would needlessly
@@ -192,12 +235,21 @@ to do per batch to
 In hop mode this refers to the number of pixels rendered in the same color.
 In life mode it is the number of generations to let each species live.
 In qix mode it is the number of lines rendered in the same color.
-In image mode it is the number of sunlogos on screen at once.
 In swarm mode it is the number of bees.
 In rotor mode it is the number of rotor thingys which whirr...
 In pyro mode it is the maximum number flying rockets at one time.
 In flame mode it is the number of levels to recurse (larger = more complex).
 In worm mode it is the number of worms.
+In spline mode it is the upper bound on the of points "splined".
+In maze mode it is the upper bound on the of size of the maze.
+In sphere mode it means nothing.
+In hyper mode it means nothing.
+In helix mode it means nothing.
+In rock mode it is the number of asteroids on the screen at once.
+In blot mode this refers to the number of pixels rendered in the same color.
+In grav mode it is the number of planets.
+In world mode it is the number of worlds.
+In rect mode it means nothing.
 In blank mode it means nothing.
 .TP 5
 .B \-nice " nicelevel"
@@ -327,6 +379,13 @@ key pressed.
 .TP 5
 .B \-v
 Verbose mode, tells what options it is going to use.
+.TP 5
+.B \-inwindow
+Runs xlock in a window, so that you can inconify, move, or resize it and
+still use your screen for other stuff.  When running in a window, xlock no
+longer locks your screen, it just looks good.  It means you can now run
+multiple xlocks in different parts of your screen, but that would not be
+particularly 'nice'.
 
 .SH BUGS
 "kill -KILL

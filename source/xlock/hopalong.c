@@ -1,168 +1,134 @@
 #ifndef lint
-static char sccsid[] = "@(#)hopalong.c 22.2 89/09/20";
+static char sccsid[] = "@(#)hopalong.c 23.7 90/10/29 XLOCK SMI";
 #endif
 /*-
-* hopalong.c - Real Plane Fractals for the xlock X11 terminal locker.
-*
-* Copyright (c) 1988-89 by Patrick Naughton and Sun Microsystems, Inc.
-*
-* Permission to use, copy, modify, and distribute this software and its
-* documentation for any purpose and without fee is hereby granted,
-* provided that the above copyright notice appear in all copies and that
-* both that copyright notice and this permission notice appear in
-* supporting documentation.
-*
-* This file is provided AS IS with no warranties of any kind. The author
-* shall have no liability with respect to the infringement of copyrights,
-* trade secrets or any patents by this file or any part thereof. In no
-* event will the author be liable for any lost revenue or profits or
-* other special, indirect and consequential damages.
-*
-* Comments and additions should be sent to the author:
-*
-* naug...@sun.com
-*
-* Patrick J. Naughton
-* Window Systems Group, MS 14-40
-* Sun Microsystems, Inc.
-* 2550 Garcia Ave
-* Mountain View, CA 94043
-*
-* Revision History:
-* 20-Sep-89: Lint.
-* 31-Aug-88: Forked from xlock.c for modularity.
-* 23-Mar-88: Coded HOPALONG routines from Scientific American Sept. 86 p. 14.
-*/
+ * hopalong.c - Real Plane Fractals for the xlock X11 terminal locker.
+ *
+ * Copyright (c) 1988-90 by Patrick Naughton and Sun Microsystems, Inc.
+ *
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose and without fee is hereby granted,
+ * provided that the above copyright notice appear in all copies and that
+ * both that copyright notice and this permission notice appear in
+ * supporting documentation.
+ *
+ * This file is provided AS IS with no warranties of any kind. The author
+ * shall have no liability with respect to the infringement of copyrights,
+ * trade secrets or any patents by this file or any part thereof. In no
+ * event will the author be liable for any lost revenue or profits or
+ * other special, indirect and consequential damages.
+ *
+ * Comments and additions should be sent to the author:
+ *
+ * naug...@eng.sun.com
+ *
+ * Patrick J. Naughton
+ * MS 14-01
+ * Windows and Graphics Group
+ * Sun Microsystems, Inc.
+ * 2550 Garcia Ave
+ * Mountain View, CA 94043
+ *
+ * Revision History:
+ * 29-Oct-90: fix bad (int) cast.
+ * 29-Jul-90: support for multiple screens.
+ * 08-Jul-90: new timing and colors and new algorithm for fractals.
+ * 15-Dec-89: Fix for proper skipping of {White,Black}Pixel() in colors.
+ * 08-Oct-89: Fixed long standing typo bug in RandomInitHop();
+ * Fixed bug in memory allocation in inithop();
+ * Moved seconds() to an extern.
+ * Got rid of the % mod since .mod is slow on a sparc.
+ * 20-Sep-89: Lint.
+ * 31-Aug-88: Forked from xlock.c for modularity.
+ * 23-Mar-88: Coded HOPALONG routines from Scientific American Sept. 86 p. 14.
+ */
 
+#include "xlock.h"
 #include <math.h>
-#include <X11/Xos.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
 
-static int centerx,
-centery; /* center of the screen */
-static double a,
-b,
-c,
-i,
-j; /* hopalong parameters */
-static int color;
-static unsigned long pix = 0;
-static Display *Dsp;
-static Window Win;
-static GC Gc;
+typedef struct {
+ int centerx;
+ int centery; /* center of the screen */
+ double a;
+ double b;
+ double c;
+ double i;
+ double j; /* hopalong parameters */
+ int inc;
+ int pix;
+ long startTime;
+} hopstruct;
+
+static hopstruct hops[MAXSCREENS];
 static XPoint *pointBuffer = 0; /* pointer for XDrawPoints */
-static int Npoints = 0;
-static long startTime;
-static int timeout;
 
-static long
-seconds()
-{
-struct timeval foo;
-
-gettimeofday(&foo, (struct timezone *) 0);
-return (foo.tv_sec);
-}
+#define TIMEOUT 30
+#define MAXRAND (4294967296.0) /* 2^32 */
 
 void
-inithop(d, w, g, c, t, n, p, x, y, A, B, C)
-Display *d;
-Window w;
-GC g;
-int c,
-t,
-n,
-p,
-x,
-y;
-double A,
-B,
-C;
+inithop(win)
+ Window win;
 {
-i = j = 0.0;
-startTime = seconds();
+ double range;
+ XWindowAttributes xgwa;
+ hopstruct *hp = &hops[screen];
 
-if ((pointBuffer) || (n != Npoints)) {
-if (pointBuffer)
-free((char *) pointBuffer);
-pointBuffer = (XPoint *) malloc(n * sizeof(XPoint));
-Npoints = n;
-}
-Dsp = d;
-Win = w;
-Gc = g;
-color = c;
-timeout = t;
-if (p >= 0)
-pix = (unsigned long) p;
-centerx = x;
-centery = y;
-a = A;
-b = B;
-c = C;
-XClearWindow(Dsp, Win);
+
+ XGetWindowAttributes(dsp, win, &xgwa);
+ hp->centerx = xgwa.width / 2;
+ hp->centery = xgwa.height / 2;
+ range = sqrt((double) hp->centerx * hp->centerx +
+ (double) hp->centery * hp->centery) /
+ (10.0 + random() % 10);
+
+ hp->pix = 0;
+ hp->inc = (int) ((random() / MAXRAND) * 400) - 200;
+ hp->a = (random() / MAXRAND) * range - range / 2.0;
+ hp->b = (random() / MAXRAND) * range - range / 2.0;
+ hp->c = (random() / MAXRAND) * range - range / 2.0;
+ if (!(random() % 2))
+ hp->c = 0.0;
+
+ hp->i = hp->j = 0.0;
+
+ if (!pointBuffer)
+ pointBuffer = (XPoint *) malloc(batchcount * sizeof(XPoint));
+
+ XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
+ XFillRectangle(dsp, win, Scr[screen].gc, 0, 0,
+ hp->centerx * 2, hp->centery * 2);
+ XSetForeground(dsp, Scr[screen].gc, WhitePixel(dsp, screen));
+ hp->startTime = seconds();
 }
 
 
 void
-randomInithop(d, w, g, c, t, n)
-Display *d;
-Window w;
-GC g;
-int c,
-t,
-n;
+drawhop(win)
+ Window win;
 {
-int range;
-XWindowAttributes xgwa;
-double A,
-B,
-C;
-int x,
-y;
+ double oldj;
+ int k = batchcount;
+ XPoint *xp = pointBuffer;
+ hopstruct *hp = &hops[screen];
 
-XGetWindowAttributes(d, w, &xgwa);
-x = xgwa.width / 2;
-y = xgwa.height / 2;
-range = (int) sqrt((double) x * x + (double) y * y);
-A = random() % (range * 100) * (random() % 2 ? -1.0 : 1.0) / 100.0;
-B = random() % (range * 100) * (random() % 2 ? -1.0 : 1.0) / 100.0;
-C = random() % (range * 100) * (random() % 2 ? -1.0 : 1.0) / 100.0;
-
-if (!(random() % 3))
-a /= 10.0;
-if (!(random() % 2))
-b /= 100.0;
-
-inithop(d, w, g, c, t, n, -1, x, y, A, B, C);
-}
-
-int
-hopdone()
-{
-return (seconds() - startTime > timeout);
-}
-
-
-void
-hop()
-{
-register double oldj;
-register int k = Npoints;
-register XPoint *xp = pointBuffer;
-
-if (color) {
-XSetForeground(Dsp, Gc, pix++);
-pix %= 254;
-}
-while (k--) {
-oldj = j;
-j = a - i;
-i = oldj + (i < 0 ? sqrt(fabs(b * i - c)) : -sqrt(fabs(b * i - c)));
-xp->x = centerx + (int) (i + j);
-xp->y = centery - (int) (i - j);
-xp++;
-}
-XDrawPoints(Dsp, Win, Gc, pointBuffer, Npoints, CoordModeOrigin);
+ hp->inc++;
+ if (!mono && Scr[screen].npixels > 2) {
+ XSetForeground(dsp, Scr[screen].gc, Scr[screen].pixels[hp->pix]);
+ if (++hp->pix >= Scr[screen].npixels)
+ hp->pix = 0;
+ }
+ while (k--) {
+ oldj = hp->j;
+ hp->j = hp->a - hp->i;
+ hp->i = oldj + (hp->i < 0
+ ? sqrt(fabs(hp->b * (hp->i + hp->inc) - hp->c))
+ : -sqrt(fabs(hp->b * (hp->i + hp->inc) - hp->c)));
+ xp->x = hp->centerx + (int) (hp->i + hp->j);
+ xp->y = hp->centery - (int) (hp->i - hp->j);
+ xp++;
+ }
+ XDrawPoints(dsp, win, Scr[screen].gc,
+ pointBuffer, batchcount, CoordModeOrigin);
+ if (seconds() - hp->startTime > TIMEOUT)
+ inithop(win);
 }

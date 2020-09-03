@@ -1,207 +1,163 @@
 #ifndef lint
-static char sccsid[] = "@(#)qix.c 22.4 89/09/23";
+static char sccsid[] = "@(#)qix.c 23.7 90/10/28 XLOCK SMI";
 #endif
 /*-
-* qix.c - The old standby vector swirl for the xlock X11 terminal locker.
-*
-* Copyright (c) 1989 by Sun Microsystems Inc.
-*
-* Permission to use, copy, modify, and distribute this software and its
-* documentation for any purpose and without fee is hereby granted,
-* provided that the above copyright notice appear in all copies and that
-* both that copyright notice and this permission notice appear in
-* supporting documentation.
-*
-* This file is provided AS IS with no warranties of any kind. The author
-* shall have no liability with respect to the infringement of copyrights,
-* trade secrets or any patents by this file or any part thereof. In no
-* event will the author be liable for any lost revenue or profits or
-* other special, indirect and consequential damages.
-*
-* Comments and additions should be sent to the author:
-*
-* naug...@sun.com
-*
-* Patrick J. Naughton
-* Window Systems Group, MS 14-40
-* Sun Microsystems, Inc.
-* 2550 Garcia Ave
-* Mountain View, CA 94043
-*
-* Revision History:
-* 23-Sep-89: Switch to random() and fixed bug w/ less than 4 lines.
-* 20-Sep-89: Lint.
-* 24-Mar-89: Written.
-*/
+ * qix.c - The old standby vector swirl for the xlock X11 terminal locker.
+ *
+ * Copyright (c) 1989-90 by Sun Microsystems Inc.
+ *
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose and without fee is hereby granted,
+ * provided that the above copyright notice appear in all copies and that
+ * both that copyright notice and this permission notice appear in
+ * supporting documentation.
+ *
+ * This file is provided AS IS with no warranties of any kind. The author
+ * shall have no liability with respect to the infringement of copyrights,
+ * trade secrets or any patents by this file or any part thereof. In no
+ * event will the author be liable for any lost revenue or profits or
+ * other special, indirect and consequential damages.
+ *
+ * Comments and additions should be sent to the author:
+ *
+ * naug...@eng.sun.com
+ *
+ * Patrick J. Naughton
+ * MS 14-01
+ * Windows and Graphics Group
+ * Sun Microsystems, Inc.
+ * 2550 Garcia Ave
+ * Mountain View, CA 94043
+ *
+ * Revision History:
+ * 29-Jul-90: support for multiple heads.
+ * made check_bounds_?() a macro.
+ * fixed initial parameter setup.
+ * 15-Dec-89: Fix for proper skipping of {White,Black}Pixel() in colors.
+ * 08-Oct-89: Fixed bug in memory allocation in initqix().
+ * Moved seconds() to an extern.
+ * 23-Sep-89: Switch to random() and fixed bug w/ less than 4 lines.
+ * 20-Sep-89: Lint.
+ * 24-Mar-89: Written.
+ */
 
-#include <X11/Xos.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-static Display *Dsp;
-static Window Win;
-static GC Gc,
-eraseGC = (GC) 0;
-static int timeout;
-static int color;
-static unsigned long pix = 0;
-static long startTime;
-static int first,
-last,
-dx1,
-dy1,
-dx2,
-dy2,
-x1,
-y1,
-x2,
-y2,
-offset,
-delta,
-width,
-height;
+#include "xlock.h"
 
 typedef struct {
-int x,
-y;
+ int x;
+ int y;
 } point;
 
-static int Nlines = 0;
-static point *lineq = (point *) 0;
+typedef struct {
+ int pix;
+ long startTime;
+ int first;
+ int last;
+ int dx1;
+ int dy1;
+ int dx2;
+ int dy2;
+ int x1;
+ int y1;
+ int x2;
+ int y2;
+ int offset;
+ int delta;
+ int width;
+ int height;
+ int nlines;
+ point *lineq;
+} qixstruct;
 
-static long
-seconds()
+static qixstruct qixs[MAXSCREENS];
+
+void
+initqix(win)
+ Window win;
 {
-struct timeval foo;
+ XWindowAttributes xgwa;
+ qixstruct *qp = &qixs[screen];
 
-gettimeofday(&foo, (struct timezone *) 0);
-return (foo.tv_sec);
+ qp->startTime = seconds();
+ srandom(time((long *) 0));
+
+ qp->nlines = (batchcount + 1) * 2;
+ if (!qp->lineq) {
+ qp->lineq = (point *) malloc(qp->nlines * sizeof(point));
+ memset(qp->lineq, '\0', qp->nlines * sizeof(point));
+ }
+
+ XGetWindowAttributes(dsp, win, &xgwa);
+ qp->width = xgwa.width;
+ qp->height = xgwa.height;
+ qp->delta = 16;
+
+ if (qp->width < 100) { /* icon window */
+ qp->nlines /= 4;
+ qp->delta /= 4;
+ }
+ qp->offset = qp->delta / 3;
+ qp->last = 0;
+ qp->pix = 0;
+ qp->dx1 = random() % qp->delta + qp->offset;
+ qp->dy1 = random() % qp->delta + qp->offset;
+ qp->dx2 = random() % qp->delta + qp->offset;
+ qp->dy2 = random() % qp->delta + qp->offset;
+ qp->x1 = random() % qp->width;
+ qp->y1 = random() % qp->height;
+ qp->x2 = random() % qp->width;
+ qp->y2 = random() % qp->height;
+ XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
+ XFillRectangle(dsp, win, Scr[screen].gc, 0, 0, qp->width, qp->height);
+}
+
+#define check_bounds(qp, val, del, max) \
+{ \
+ if ((val) < 0) { \
+ *(del) = (random() % (qp)->delta) + (qp)->offset; \
+ } else if ((val) > (max)) { \
+ *(del) = -(random() % (qp)->delta) - (qp)->offset; \
+ } \
 }
 
 void
-initqix(d, w, g, c, t, n)
-Display *d;
-Window w;
-GC g;
-int c,
-t,
-n;
+drawqix(win)
+ Window win;
 {
-XWindowAttributes xgwa;
-XGCValues xgcv;
+ qixstruct *qp = &qixs[screen];
 
-startTime = seconds();
-if (n < 4)
-n = 4;
+ qp->first = (qp->last + 2) % qp->nlines;
 
-if (n != Nlines) {
-if (lineq)
-free((char *) lineq);
-lineq = (point *) malloc(n * sizeof(point));
-Nlines = n;
-}
-Dsp = d;
-Win = w;
-Gc = g;
-color = c;
-timeout = t;
+ qp->x1 += qp->dx1;
+ qp->y1 += qp->dy1;
+ qp->x2 += qp->dx2;
+ qp->y2 += qp->dy2;
+ check_bounds(qp, qp->x1, &qp->dx1, qp->width);
+ check_bounds(qp, qp->y1, &qp->dy1, qp->height);
+ check_bounds(qp, qp->x2, &qp->dx2, qp->width);
+ check_bounds(qp, qp->y2, &qp->dy2, qp->height);
+ XSetForeground(dsp, Scr[screen].gc, BlackPixel(dsp, screen));
+ XDrawLine(dsp, win, Scr[screen].gc,
+ qp->lineq[qp->first].x, qp->lineq[qp->first].y,
+ qp->lineq[qp->first + 1].x, qp->lineq[qp->first + 1].y);
+ if (!mono && Scr[screen].npixels > 2) {
+ XSetForeground(dsp, Scr[screen].gc, Scr[screen].pixels[qp->pix]);
+ if (++qp->pix >= Scr[screen].npixels)
+ qp->pix = 0;
+ } else
+ XSetForeground(dsp, Scr[screen].gc, WhitePixel(dsp, screen));
 
-if (eraseGC == (GC) 0) {
-xgcv.foreground = BlackPixel(Dsp, 0);
-eraseGC = XCreateGC(Dsp, Win, GCForeground, &xgcv);
-}
-if (!color)
-XSetForeground(Dsp, Gc, WhitePixel(Dsp, 0));
+ XDrawLine(dsp, win, Scr[screen].gc, qp->x1, qp->y1, qp->x2, qp->y2);
 
-XGetWindowAttributes(Dsp, Win, &xgwa);
-width = xgwa.width;
-height = xgwa.height;
+ qp->lineq[qp->last].x = qp->x1;
+ qp->lineq[qp->last].y = qp->y1;
+ qp->last++;
+ if (qp->last >= qp->nlines)
+ qp->last = 0;
 
-if (width < 100) /* icon window */
-delta = 2;
-else
-delta = 15;
-offset = delta / 3;
-last = 0;
-
-srandom(time((long *) 0));
-dx1 = random() & (width - 1) + 50;
-dy1 = random() & (height - 1) + 50;
-dx2 = random() & (width - 1) + 50;
-dy2 = random() & (height - 1) + 50;
-x1 = random() & width;
-y1 = random() & height;
-x2 = random() & width;
-y2 = random() & height;
-XFillRectangle(Dsp, Win, eraseGC, 0, 0, width, height);
-}
-
-int
-qixdone()
-{
-return (seconds() - startTime > timeout);
-}
-
-void
-drawqix()
-{
-register int n = Nlines;
-
-while (n--) {
-first = (last + 2) % Nlines;
-
-x1 += dx1;
-y1 += dy1;
-x2 += dx2;
-y2 += dy2;
-check_bounds_x(x1, &dx1);
-check_bounds_y(y1, &dy1);
-check_bounds_x(x2, &dx2);
-check_bounds_y(y2, &dy2);
-if (color) {
-XSetForeground(Dsp, Gc, pix++);
-if (pix > 253)
-pix = 0;
-}
-XDrawLine(Dsp, Win, eraseGC,
-lineq[first].x, lineq[first].y,
-lineq[first + 1].x, lineq[first + 1].y);
-XDrawLine(Dsp, Win, Gc, x1, y1, x2, y2);
-
-lineq[last].x = x1;
-lineq[last].y = y1;
-last += 1;
-if (last >= Nlines)
-last = 0;
-
-lineq[last].x = x2;
-lineq[last].y = y2;
-last += 1;
-if (last >= Nlines)
-last = 0;
-}
-}
-
-static
-check_bounds_y(y, dy)
-int y,
-*dy;
-{
-if (y < 0) {
-*dy = (random() & delta) + offset;
-} else if (y > height) {
-*dy = -(random() & delta) - offset;
-}
-}
-
-static
-check_bounds_x(x, dx)
-int x,
-*dx;
-{
-if (x < 0) {
-*dx = (random() & delta) + offset;
-} else if (x > width) {
-*dx = -(random() & delta) - offset;
-}
+ qp->lineq[qp->last].x = qp->x2;
+ qp->lineq[qp->last].y = qp->y2;
+ qp->last++;
+ if (qp->last >= qp->nlines)
+ qp->last = 0;
 }
